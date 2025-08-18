@@ -22,8 +22,7 @@ load. */
     /* Attempt to open MODULE_PATH as a shared library. */
     handle = dlopen(module_path, RTLD_NOW);
     free(module_path);
-    if(handle == NULL){
-        if (handle == NULL) {
+    if (handle == NULL) {
         /* Failed; either this path doesn’t exist or it isn’t a shared
         library. */
             return NULL;
@@ -32,5 +31,27 @@ load. */
     module_generate = (void (*) (int)) dlsym (handle, "module_generate");
     /* Make sure the symbol was found. */
         
-    if
+        if(module_generate == NULL){
+        /* The symbol is missing. While this is a shared library, it
+            probably isn’t a server module. Close up and indicate failure. */
+            dlclose(handle);
+            return NULL;
+        }
+        
+    /* Allocate and initialize a server module object.*/
+        module = (struct server_module*)xmalloc(sizeof(struct server_module));
+        module->handle = handle;
+        module->name = xstrdup(module_name);
+        module->generate_function = module_generate;
+        /* Return it, indicating success. */
+        return  module;
+}
+
+void module_close(struct server_module* module){
+    /* Close the shared library. */
+    dlclose(module->handle);
+    /* Deallocate the module name. */
+    free((char*) module->name);
+    /* Deallocate the module object. */
+    free(module);
 }
