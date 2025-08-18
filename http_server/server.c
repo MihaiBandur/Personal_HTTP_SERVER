@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include "server.h"
 
@@ -106,7 +107,7 @@ static void handle_get (int connection_fd, const char* page){
         /* The requested module was loaded successfully. */
         /* Send the HTTP response indicating success, and the HTTP header
         for an HTML page. */
-        write(connection_fd, ok_response, sizeof(ok_response));
+        write(connection_fd, ok_response, strlen(ok_response));
         /* Invoke the module, which will generate HTML output and send it
         to the client file descriptor. */
         (*module->generate_function) (connection_fd);
@@ -189,5 +190,101 @@ void server_run (struct in_addr local_address, uint16_t port){
     sigchld_action.sa_handler = &clean_up_child_process;
     sigaction(SIGCHLD, &sigchld_action, NULL);
     /* Create a TCP socket*/
+    server_socket = socket(PF_INET, SOCK_STREAM, 0);
+    if(server_socket == -1){
+        system_error("socket");
+    }
+    /* Construct a socket address structure for the local address on
+    which we want to listen for connections. */
     
+    memset(&socket_address, 0, sizeof(socket_address));
+    socket_address.sin_family = AF_INET;
+    socket_address.sin_port = port;
+    socket_address.sin_addr = local_address;
+    /* Bind the socket to that address. */
+    rval = bind (server_socket, &socket_address, sizeof (socket_address));
+    if(rval != 0)
+        system_error("bind");
+    /* Instruct the socket to accespt connections*/
+    rval = listen(server_socket, 10);
+    if(rval != 0){
+        system_error("listen");
+    }
+    
+    if(verbose){
+        /* In verbose mode, display the local address and port number
+        we’re listening on. */
+        
+        socklen_t address_length;
+        
+        /* Find the socket's local address. */
+        address_length = sizeof(socket_address);
+        rval = getsockname(server_socket, &socket_address, &address_length);
+        assert(rval == 0);
+        /* Print a message. The port number needs to be converted from
+        network byte order (big endian) to host byte order. */
+        printf ("server listening on %s:%d\n",
+        inet_ntoa (socket_address.sin_addr),
+        (int) ntohs (socket_address.sin_port));
+    }
+    /* Loop forever, handling connections. */
+    while (1) {
+        struct sockaddr_in remote_address;
+        socklen_t address_length;
+        int connection;
+        pid_t child_pin;
+        
+        /* Accept a connection. This call blocks until a connection is ready. */
+        address_length = sizeof(remote_address);
+        connection = accept(server_socket, &remote_address, &address_length);
+        if(connection == -1){
+            /* The call to accept failed. */
+            if(errno == EINTR)
+            /* The call was interrupted by a signal. Try again. */
+                continue;
+            else
+                system_error("accept");
+        }
+        /* We have a connection. Print a message if we’re running in
+        verbose mode. */
+        if(verbose){
+            socklen_t socket_length;
+            /* Get the remote address of the connection. */
+            address_length = sizeof(socket_address);
+            rval = getpeername(connection, &socket_address, &address_length);
+            assert(rval == 0);
+            /* Print a message. */
+            printf("connection accepted from %s\n", inet_ntoa(socket_address.sin_addr));
+        }
+        /* Forl a child process to handle the connection. */
+        child_pin = fork();
+        if(child_pin == 0){
+            /* This is the child process. It shouldn’t use stdin or stdout,
+            so close them. */
+            close(STDIN_FILENO);
+            close(STDOUT_FILENO);
+            /* Also this child process shouldn’t do anything with the
+            listening socket. */
+            close(server_socket);
+            /* Handle a request from the connection. We have our own copy
+            of the connected socket descriptor. */
+            handle_connection(connection);
+            /* All done; close the connection socket, and end the child
+            process. */
+            close(connection);
+            exit(0);
+        }
+        else if (child_pin > 0){
+            /* This is the parent process. The child process handles the
+            connection, so we don’t need our copy of the connected socket
+            descriptor. Close it. Then continue with the loop and
+            accept another connection. */
+            close(connection);
+        }
+        else
+        /* Call to fork failed. */
+            system_error("fork");
+        
+    }
+
 }
