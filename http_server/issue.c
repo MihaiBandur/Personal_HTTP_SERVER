@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/sendfile.h>
 
 #include "server.h"
 
@@ -69,5 +70,6 @@ void module_generate(int fd){
         write(fd, page_end, strlen(page_end));
     }
     close(input_fd);
+    
     
 }

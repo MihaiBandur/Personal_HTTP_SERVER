@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F57467002E5480F200DC8069 /* diskfree.c in Sources */ = {isa = PBXBuildFile; fileRef = F57466FF2E5480F200DC8069 /* diskfree.c */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXCopyFilesBuildPhase section */
 		F5FC78182E53304600484CC2 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -19,6 +23,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F57466FF2E5480F200DC8069 /* diskfree.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = diskfree.c; sourceTree = "<group>"; };
 		F5FC781A2E53304600484CC2 /* http_server */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = http_server; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -44,6 +49,7 @@
 		F5FC78112E53304600484CC2 = {
 			isa = PBXGroup;
 			children = (
+				F57466FF2E5480F200DC8069 /* diskfree.c */,
 				F5FC781C2E53304600484CC2 /* http_server */,
 				F5FC781B2E53304600484CC2 /* Products */,
 			);
@@ -120,6 +126,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F57467002E5480F200DC8069 /* diskfree.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
