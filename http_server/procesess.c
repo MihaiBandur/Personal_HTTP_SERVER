@@ -146,6 +146,172 @@ static int get_rss(pid_t pid){
     /* The values in statm are in units of the system’s page size.
      Convert the RSS to kilobytes. */
     return  rss * getpagesize();
-     
+}
+
+/* Generate an HTML table row for process PID. The return value is a
+pointer to a buffer that the caller must deallocate with free, or
+NULL if an error occurs. */
+
+static char* format_process_info(pid_t pid){
+    int rval;
+    uid_t uid;
+    gid_t gid;
+    char* user_name;
+    char* group_name;
+    int rss;
+    char* program_name;
+    size_t result_length;
+    char* result;
+    
+    /* Obtain the process’s user and group IDs. */
+    rval = get_uid_gid(pid, &uid, &gid);
+    if(rval != 0)
+        return NULL;
+    /* Obtain the process’s RSS. */
+    rss = get_rss(pid);
+    if(rss == -1)
+        return NULL;
+    /* Obtain the process’s program name. */
+    program_name = get_program_name(pid);
+    if(program_name == NULL)
+        return NULL;
+    /* Convert user and group IDs to corresponding names. */
+    user_name = get_user_name(uid);
+    group_name = get_group_name(gid);
+    
+    /* Compute the length of the string we’ll need to hold the result, and
+    allocate memory to hold it. */
+    
+    result_length = strlen(program_name) + strlen(user_name) + strlen(group_name) + 128;
+    
+    result = (char* ) xmalloc(result_length);
+    /* Format the result. */
+    snprintf (result, result_length,
+    "<tr><td align=\"right\">%d</td><td><tt>%s</tt></td><td>%s</td>"
+    "<td>%s</td><td align=\"right\">%d</td></tr>\n",
+    (int) pid, program_name, user_name, group_name, rss);
+    /* Clean up. */
+    free (program_name);
+    free (user_name);
+    free (group_name);
+    /* All done. */
+    return result;
     
 }
+
+/* HTML source for the start of the process listing page. */
+
+static char* page_start =
+    "<html>\n"
+    " <body>\n"
+    " <table cellpadding=\"4\" cellspacing=\"0\" border=\"1\">\n"
+    " <thead>\n"
+    " <tr>\n"
+    " <th>PID</th>\n"
+    " <th>Program</th>\n"
+    " <th>User</th>\n"
+    " <th>Group</th>\n"
+    " <th>RSS&nbsp;(KB)</th>\n"
+    " </tr>\n"
+    " </thead>\n"
+    " <tbody>\n";
+
+/* HTML source for the end of the process listing page. */
+
+static char* page_end =
+    " </tbody>\n"
+    " </table>\n"
+    " </body>\n"
+    "</html>\n";
+
+
+void module_generate(int fd){
+    
+    size_t i;
+    DIR* proc_listing;
+    
+    /* Set up an iovec array. We’ll fill this with buffers that’ll be
+    part of our output, growing it dynamically as necessary. */
+    
+    /* The number of elements in the array that we’ve used. */
+    
+    size_t vec_length = 0;
+    /* The allocated size of the array. */
+    size_t vec_size = 16;
+    /* The array of iovcec elements. */
+    struct iovec* vec =
+        (struct iovec*) xmalloc (vec_size * sizeof (struct iovec));
+    
+    /* The first buffer is the HTML source for the start of the page. */
+    vec[vec_length].iov_base = page_start;
+    vec[vec_length].iov_len = strlen(page_start);
+    ++vec_length;
+    
+    
+    /* Start a directory listing for /proc. */
+    
+    proc_listing = opendir("/proc");
+    if(proc_listing == NULL)
+        system_error("opendir");
+    
+    /* Loop over directory entries in /proc. */
+    while (1) {
+        struct dirent* proc_entry;
+        const char* name;
+        pid_t pid;
+        char* process_info;
+        
+        /* Get the next entry in /proc. */
+        proc_entry = readdir(proc_listing);
+        if(proc_entry == NULL)
+        /* We’ve hit the end of the listing. */
+            break;
+        /* If this entry is not composed purely of digits, it’s not a
+        process directory, so skip it. */
+        name = proc_entry->d_name;
+        if(strspn(name, "0123456789") != strlen(name))
+            continue;
+        /* The name of the entry is the process ID. */
+        pid = (pid_t) atoi(name);
+        /* Generate HTML for a table row describing this process. */
+        process_info = format_process_info(pid);
+        if(process_info == NULL)
+        /* Something went wrong. The process may have vanished while we
+        were looking at it. Use a placeholder row instead. */
+            process_info = "<tr><td colspan=\"5\">ERROR</td></tr>";
+        
+        /* Make sure the iovec array is long enough to hold this buffer
+        (plus one more because we’ll add an extra element when we’re done
+        listing processes). If not, grow it to twice its current size. */
+        
+        if(vec_length == vec_size - 1){
+            vec_size *= 2;
+            vec = xrealloc(vec, vec_size * sizeof(struct iovec));
+        }
+        /* Store this buffer as the next element of the array. */
+        vec[vec_length].iov_base = process_info;
+        vec[vec_length].iov_len = strlen(process_info);
+        ++ vec_length;
+    }
+    /* End the directory listing operation. */
+    closedir (proc_listing);
+    
+    /* Add one last buffer with HTML that ends the page. */
+    
+    vec[vec_length].iov_base = page_end;
+    vec[vec_length].iov_len = strlen(page_end);
+    ++vec_length;
+    
+    /* Output the entire page to the client file descriptor all at once. */
+    writev (fd, vec, vec_length);
+    /* Deallocate the buffers we created. The first and last are static
+    and should not be deallocated. */
+    
+    for (i = 1; i < vec_length - 1; ++i)
+    free (vec[i].iov_base);
+    /* Deallocate the iovec array. */
+    free (vec);
+    }
+     
+    
+
