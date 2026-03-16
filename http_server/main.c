@@ -110,7 +110,7 @@ int main(int argc, char** argv){
                 long value;
                 char* end;
                 
-                value = strtol(optarg, &send, 10);
+                value = strtol(optarg, &end, 10);
                 if(*end != '\0')
                 /* The user specified nondigits in the port number. */
                     print_usage(1);

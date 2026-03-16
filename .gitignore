@@ -1,0 +1,22 @@
+# Executabilul principal
+server
+
+# Fișiere obiect (generate în timpul compilării)
+*.o
+
+# Biblioteci partajate / Module dinamice
+*.so
+
+# Fisiere de debug (daca folosesti gdb/lldb)
+*.dSYM/
+*.out
+
+# Fișiere specifice macOS (sistemul tău gazdă)
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Directoare specifice editoarelor de cod (opțional, dar recomandat)
+.vscode/
+.idea/
+*.swp

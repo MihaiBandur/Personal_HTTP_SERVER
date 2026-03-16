@@ -88,7 +88,7 @@ static void handle_get (int connection_fd, const char* page){
         
         snprintf(module_file_name, sizeof(module_file_name), "%s.so", page + 1);
         /* Try to open the module. */
-        module = module_opeb(module_file_name);
+        module = module_open(module_file_name);
     }
     
     if(module == NULL){
@@ -154,7 +154,7 @@ static void handle_connection(int connection_fd){
          1.1. */
         if(strcmp(protocool, "HTTP/1.0") && strcmp(protocool, "HTTP/1.1")){
             /* We don’t understand this protocol. Report a bad response. */
-            write(connection_fd, bad_request_response, sizeof(bad_request_response));
+            write(connection_fd, bad_request_response, strlen(bad_request_response));
         }
         else if (strcmp(method, "GET")){
             /* This server only implements the GET method. The client

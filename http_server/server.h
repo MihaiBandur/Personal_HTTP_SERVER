@@ -56,7 +56,7 @@ extern char* module_dir;
 server module exists with this path, loads the module and returns a
 server_module structure representing it. Otherwise, returns NULL. */
 
-extern struct server_module* module_opeb(const char* module_path);
+extern struct server_module* module_open(const char* module_path);
 
 /* Close  a server module and dellocate the MODULE object.*/
 extern void module_close(struct server_module* module);
